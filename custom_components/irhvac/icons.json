@@ -1,0 +1,20 @@
+{
+  "entity": {
+    "switch": {
+      "quiet": { "default": "mdi:volume-off" },
+      "light": { "default": "mdi:lightbulb-outline" },
+      "cleaning": { "default": "mdi:broom" },
+      "purifier": { "default": "mdi:air-purifier" },
+      "power_limit": { "default": "mdi:flash-outline" }
+    },
+    "select": {
+      "economy": { "default": "mdi:leaf" },
+      "auto_bias": { "default": "mdi:thermometer-plus" },
+      "spot": { "default": "mdi:target" }
+    },
+    "button": {
+      "se_step": { "default": "mdi:fan-chevron-up" },
+      "diagnostic": { "default": "mdi:stethoscope" }
+    }
+  }
+}
