@@ -49,8 +49,8 @@ def test_refuses_minor_release(repo):
     assert read(repo) == before
 
 
-@pytest.mark.parametrize("version", ["0.2.0", "0.1.9"])
-def test_refuses_same_or_older(repo, version):
+@pytest.mark.parametrize("version", ["0.2.0", "v0.2.0", "0.1.9"])
+def test_same_or_older_is_nothing_to_do(repo, version):
     before = read(repo)
-    assert main([version], root=repo) == 2
+    assert main([version], root=repo) == 3
     assert read(repo) == before

@@ -2,9 +2,10 @@
 
     python scripts/bump_pyhvac.py v0.2.1
 
-Prints the new integration version. Exit 2 (files untouched) when the
-release is not newer than the current pin, or changes major.minor: a pyhvac
-minor release is not taken automatically.
+Prints the new integration version. Files are untouched and the exit code
+is 3 when the release is not newer than the current pin (nothing to do), or
+2 when it changes major.minor (a pyhvac minor release is not taken
+automatically: update by hand).
 """
 
 from __future__ import annotations
@@ -32,10 +33,16 @@ def main(argv: list[str], root: Path = Path(".")) -> int:
     manifest = json.loads(manifest_path.read_text())
     (pin,) = [r for r in manifest["requirements"] if r.startswith("pyhvac==")]
     current = _version(pin.removeprefix("pyhvac=="))
-    if new <= current or new[:2] != current[:2]:
+    if new <= current:
         print(
-            f"pyhvac {new_text} is not a newer {current[0]}.{current[1]}.x release "
-            f"than {'.'.join(map(str, current))}: update by hand",
+            f"pyhvac {new_text} is already pinned or older than "
+            f"{'.'.join(map(str, current))}: nothing to do",
+            file=sys.stderr,
+        )
+        return 3
+    if new[:2] != current[:2]:
+        print(
+            f"pyhvac {new_text} is a new minor release: update by hand",
             file=sys.stderr,
         )
         return 2

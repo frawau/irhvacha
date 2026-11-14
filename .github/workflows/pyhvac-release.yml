@@ -45,6 +45,10 @@ jobs:
           new=$(python scripts/bump_pyhvac.py "$PYHVAC")
           code=$?
           set -e
+          if [ "$code" = 3 ]; then
+            echo "pyhvac $PYHVAC is already pinned: nothing to do"
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           if [ "$code" = 2 ]; then
             gh issue create --title "pyhvac $PYHVAC needs a manual update" \
               --body "The automatic follow-up only takes newer releases of the same pyhvac minor version."
