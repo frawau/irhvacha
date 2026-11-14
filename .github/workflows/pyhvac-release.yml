@@ -1,0 +1,83 @@
+name: Follow a pyhvac release
+
+# Sent by pyhvac's release workflow:
+#   gh api repos/frawau/irhvacha/dispatches -f event_type=pyhvac-release \
+#     -F 'client_payload[version]=0.2.1'
+on:
+  repository_dispatch:
+    types: [pyhvac-release]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "pyhvac version"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  follow:
+    runs-on: ubuntu-latest
+    env:
+      PYHVAC: ${{ github.event.client_payload.version || inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Wait for the release on PyPI
+        run: |
+          v="${PYHVAC#v}"
+          for i in $(seq 1 40); do
+            pip index versions pyhvac 2>/dev/null | grep -qw "$v" && exit 0
+            sleep 15
+          done
+          echo "pyhvac $v is not on PyPI" >&2; exit 1
+      - name: Pin it
+        id: bump
+        run: |
+          set +e
+          new=$(python scripts/bump_pyhvac.py "$PYHVAC")
+          code=$?
+          set -e
+          if [ "$code" = 2 ]; then
+            gh issue create --title "pyhvac $PYHVAC needs a manual update" \
+              --body "The automatic follow-up only takes newer releases of the same pyhvac minor version."
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          [ "$code" = 0 ] || exit "$code"
+          echo "version=$new" >> "$GITHUB_OUTPUT"
+      - name: Test
+        id: test
+        if: steps.bump.outputs.skip != 'true'
+        continue-on-error: true
+        run: |
+          pip install -r requirements_test.txt
+          pytest
+      - name: Release
+        if: steps.bump.outputs.skip != 'true' && steps.test.outcome == 'success'
+        run: |
+          v="${PYHVAC#v}"; new="${{ steps.bump.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Require pyhvac $v"
+          git push origin HEAD:main
+          gh release create "$new" --target main --title "$new" \
+            --notes "Requires [pyhvac $v](https://github.com/frawau/pyhvac/releases/tag/v$v): new and fixed models."
+      - name: Open a PR instead
+        if: steps.bump.outputs.skip != 'true' && steps.test.outcome != 'success'
+        run: |
+          v="${PYHVAC#v}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "pyhvac-$v"
+          git commit -am "Require pyhvac $v"
+          git push origin "pyhvac-$v"
+          gh pr create --title "Require pyhvac $v" \
+            --body "The tests failed with pyhvac $v, so no release was made. See the workflow run."
+          exit 1

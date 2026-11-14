@@ -1,13 +1,19 @@
 {
   "domain": "irhvac",
   "name": "IR HVAC",
-  "codeowners": ["@frawau"],
+  "codeowners": [
+    "@frawau"
+  ],
   "config_flow": true,
-  "dependencies": ["infrared"],
+  "dependencies": [
+    "infrared"
+  ],
   "documentation": "https://github.com/frawau/irhvacha",
   "integration_type": "device",
   "iot_class": "assumed_state",
   "issue_tracker": "https://github.com/frawau/irhvacha/issues",
-  "requirements": ["pyhvac==0.2.0"],
+  "requirements": [
+    "pyhvac==0.2.0"
+  ],
   "version": "0.1.0"
 }
