@@ -11,7 +11,8 @@
     "unit": {
       "entry_type": "A/C unit",
       "initiate_flow": {
-        "user": "Add A/C unit"
+        "user": "Add A/C unit",
+        "reconfigure": "Reconfigure A/C unit"
       },
       "step": {
         "user": {

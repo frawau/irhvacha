@@ -48,3 +48,35 @@ async def test_diagnostics_snapshot(hass, emitter):
     )
     one = await async_get_device_diagnostics(hass, added.entry, device)
     assert one == {"pyhvac": pyhvac.__version__, "unit": unit}
+
+
+async def test_device_diagnostics_of_a_skipped_unit(hass, emitter):
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from .conftest import unit_subentry
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="IR HVAC",
+        data={},
+        subentries_data=[
+            unit_subentry("Daikin", "Gone 9000", emitter=emitter.entity_id)
+        ],
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    (unit_id,) = entry.subentries
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        config_subentry_id=unit_id,
+        identifiers={(DOMAIN, unit_id)},
+    )
+    diag = await async_get_device_diagnostics(hass, entry, device)
+    assert diag == {
+        "pyhvac": pyhvac.__version__,
+        "unit": None,
+        "skipped": "Daikin Gone 9000",
+    }
+    entry_diag = await async_get_config_entry_diagnostics(hass, entry)
+    assert entry_diag["skipped"] == ["Daikin Gone 9000"]

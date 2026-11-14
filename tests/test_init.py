@@ -147,3 +147,28 @@ async def test_closed_unit_sends_nothing(hass, emitter):
     with pytest.raises(HomeAssistantError):
         await unit.async_set(power=True)
     assert emitter.sent == []
+
+
+async def test_unit_deleted_while_unloaded_loses_its_store(hass, emitter):
+    gone = await add_unit(hass, emitter, "Daikin", "FTXM20R5V1B")
+    await hass.services.async_call(
+        "climate",
+        "set_hvac_mode",
+        {"entity_id": climate_id(hass, gone.id), "hvac_mode": HVACMode.COOL},
+        blocking=True,
+    )
+    entry = gone.entry
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    hass.config_entries.async_remove_subentry(entry, gone.id)
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert await Store(hass, STORAGE_VERSION, f"irhvac.{gone.id}").async_load() is None
+
+
+async def test_renaming_the_entry_does_not_reload_units(hass, emitter):
+    added = await add_unit(hass, emitter, "Daikin", "FTXM20R5V1B")
+    unit = added.unit
+    hass.config_entries.async_update_entry(added.entry, title="My A/Cs")
+    await hass.async_block_till_done()
+    assert added.unit is unit

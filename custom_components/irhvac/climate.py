@@ -32,7 +32,6 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 from . import IrHvacConfigEntry
 from .const import CONF_HUMIDITY_SENSOR, CONF_POWER_SENSOR, CONF_TEMPERATURE_SENSOR
 from .entity import IrHvacEntity
-from .unit import IrHvacUnit
 from .mapping import (
     HVAC_MODES,
     hvac_modes,
@@ -46,6 +45,7 @@ from .mapping import (
     value_of,
     with_preset,
 )
+from .unit import IrHvacUnit
 
 _TEMPERATURE_UNITS = {unit.value for unit in UnitOfTemperature}
 

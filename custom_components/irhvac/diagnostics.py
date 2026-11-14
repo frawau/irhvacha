@@ -52,6 +52,11 @@ async def async_get_config_entry_diagnostics(
             unit_id: _unit(entry, unit_id, unit)
             for unit_id, unit in entry.runtime_data.items()
         },
+        "skipped": [
+            subentry.title
+            for unit_id, subentry in entry.subentries.items()
+            if unit_id not in entry.runtime_data
+        ],
     }
 
 
@@ -59,8 +64,12 @@ async def async_get_device_diagnostics(
     hass: HomeAssistant, entry: IrHvacConfigEntry, device: DeviceEntry
 ) -> dict[str, Any]:
     """Diagnostics for the unit of ``device``."""
-    unit_id = next(i for d, i in device.identifiers if d == DOMAIN)
-    return {
-        "pyhvac": pyhvac.__version__,
-        "unit": _unit(entry, unit_id, entry.runtime_data[unit_id]),
-    }
+    unit_id = next((i for d, i in device.identifiers if d == DOMAIN), None)
+    if (unit := entry.runtime_data.get(unit_id)) is None:
+        subentry = entry.subentries.get(unit_id)
+        return {
+            "pyhvac": pyhvac.__version__,
+            "unit": None,
+            "skipped": subentry.title if subentry else None,
+        }
+    return {"pyhvac": pyhvac.__version__, "unit": _unit(entry, unit_id, unit)}
