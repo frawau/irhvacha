@@ -13,12 +13,12 @@ def entity_id(hass, domain, unique_id):
     return er.async_get(hass).async_get_entity_id(domain, "irhvac", unique_id)
 
 
-async def turn_on(hass, entry):
+async def turn_on(hass, added):
     await hass.services.async_call(
         "climate",
         "set_hvac_mode",
         {
-            "entity_id": entity_id(hass, "climate", entry.entry_id),
+            "entity_id": entity_id(hass, "climate", added.id),
             "hvac_mode": HVACMode.COOL,
         },
         blocking=True,
@@ -26,14 +26,14 @@ async def turn_on(hass, entry):
 
 
 async def test_daikin_feature_entities(hass, emitter):
-    entry = await add_unit(hass, emitter, "Daikin", "FTXM20R5V1B")
+    added = await add_unit(hass, emitter, "Daikin", "FTXM20R5V1B")
     for feature in ("quiet", "light", "purifier", "cleaning"):
-        assert entity_id(hass, "switch", f"{entry.entry_id}_{feature}")
-    assert not entity_id(hass, "switch", f"{entry.entry_id}_powerful")  # a preset
-    await turn_on(hass, entry)
-    unit = entry.runtime_data
+        assert entity_id(hass, "switch", f"{added.id}_{feature}")
+    assert not entity_id(hass, "switch", f"{added.id}_powerful")  # a preset
+    await turn_on(hass, added)
+    unit = added.unit
     before = unit.previous
-    light = entity_id(hass, "switch", f"{entry.entry_id}_light")
+    light = entity_id(hass, "switch", f"{added.id}_light")
     assert hass.states.get(light).name.endswith("Display light")
     await hass.services.async_call(
         "switch", "turn_on", {"entity_id": light}, blocking=True
@@ -44,42 +44,42 @@ async def test_daikin_feature_entities(hass, emitter):
 
 
 async def test_economy_levels_select(hass, emitter):
-    entry = await add_unit(hass, emitter, "LG", "Dual Inverter")
-    sel = entity_id(hass, "select", f"{entry.entry_id}_economy")
+    added = await add_unit(hass, emitter, "LG", "Dual Inverter")
+    sel = entity_id(hass, "select", f"{added.id}_economy")
     assert hass.states.get(sel).attributes["options"] == ["off", "80", "60", "40"]
     await hass.services.async_call(
         "select", "select_option", {"entity_id": sel, "option": "60"}, blocking=True
     )
-    assert entry.runtime_data.state.features["economy"] == "60"
+    assert added.unit.state.features["economy"] == "60"
     assert hass.states.get(sel).state == "60"
 
 
 async def test_feature_change_while_off_is_stored(hass, emitter):
-    entry = await add_unit(hass, emitter, "Daikin", "FTXM20R5V1B")
-    light = entity_id(hass, "switch", f"{entry.entry_id}_light")
+    added = await add_unit(hass, emitter, "Daikin", "FTXM20R5V1B")
+    light = entity_id(hass, "switch", f"{added.id}_light")
     await hass.services.async_call(
         "switch", "turn_on", {"entity_id": light}, blocking=True
     )
-    assert emitter.sent == [] and entry.runtime_data.state.features["light"] is True
-    await turn_on(hass, entry)
-    assert len(emitter.sent) == 1 and entry.runtime_data.previous.features["light"]
+    assert emitter.sent == [] and added.unit.state.features["light"] is True
+    await turn_on(hass, added)
+    assert len(emitter.sent) == 1 and added.unit.previous.features["light"]
 
 
 async def test_unknown_feature_gets_a_readable_name(hass, emitter, monkeypatch):
     from custom_components.irhvac import switch
 
     monkeypatch.setattr(switch, "extra_features", lambda caps: (["fresh_air"], []))
-    entry = await add_unit(hass, emitter, "AEG", "Chillflex Pro AXP26U338CW")
-    eid = entity_id(hass, "switch", f"{entry.entry_id}_fresh_air")
+    added = await add_unit(hass, emitter, "AEG", "Chillflex Pro AXP26U338CW")
+    eid = entity_id(hass, "switch", f"{added.id}_fresh_air")
     assert hass.states.get(eid).name.endswith("Fresh air")
 
 
 async def test_action_button_sends_action(hass, emitter):
-    entry = await add_unit(hass, emitter, "Airspool", "Mini-split")
-    await turn_on(hass, entry)
-    unit = entry.runtime_data
+    added = await add_unit(hass, emitter, "Airspool", "Mini-split")
+    await turn_on(hass, added)
+    unit = added.unit
     before = unit.previous
-    button = entity_id(hass, "button", f"{entry.entry_id}_action_se_step")
+    button = entity_id(hass, "button", f"{added.id}_action_se_step")
     assert hass.states.get(button).name.endswith("SE speed step")
     await hass.services.async_call(
         "button", "press", {"entity_id": button}, blocking=True

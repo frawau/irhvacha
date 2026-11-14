@@ -27,5 +27,5 @@ template:
 Pick a threshold above the unit's standby power. `delay_off` keeps the
 sensor on while the compressor cycles.
 
-Then pick this sensor as the unit's power sensor (Configure on the IR HVAC
-device).
+Then pick this sensor as the unit's power sensor (Reconfigure on the unit,
+on the IR HVAC integration page).

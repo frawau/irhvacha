@@ -10,6 +10,7 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     ATTR_UNIT_OF_MEASUREMENT,
@@ -31,6 +32,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 from . import IrHvacConfigEntry
 from .const import CONF_HUMIDITY_SENSOR, CONF_POWER_SENSOR, CONF_TEMPERATURE_SENSOR
 from .entity import IrHvacEntity
+from .unit import IrHvacUnit
 from .mapping import (
     HVAC_MODES,
     hvac_modes,
@@ -53,8 +55,12 @@ async def async_setup_entry(
     entry: IrHvacConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Add the unit's climate entity."""
-    async_add_entities([IrHvacClimate(entry)])
+    """Add each unit's climate entity."""
+    for subentry_id, unit in entry.runtime_data.items():
+        async_add_entities(
+            [IrHvacClimate(entry.subentries[subentry_id], unit)],
+            config_subentry_id=subentry_id,
+        )
 
 
 def _number(state: State | None) -> float | None:
@@ -72,13 +78,12 @@ class IrHvacClimate(IrHvacEntity, ClimateEntity):
     _attr_name = None
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
 
-    def __init__(self, entry: IrHvacConfigEntry) -> None:
-        unit = entry.runtime_data
-        super().__init__(entry, unit)
+    def __init__(self, subentry: ConfigSubentry, unit: IrHvacUnit) -> None:
+        super().__init__(subentry, unit)
         caps = unit.capabilities
-        self._attr_unique_id = entry.entry_id
+        self._attr_unique_id = subentry.subentry_id
         self._sensors = {
-            key: entry.options.get(key)
+            key: subentry.data.get(key)
             for key in (
                 CONF_TEMPERATURE_SENSOR,
                 CONF_HUMIDITY_SENSOR,

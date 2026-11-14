@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from homeassistant.components.select import SelectEntity
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import IrHvacConfigEntry
 from .entity import IrHvacNamedEntity
 from .mapping import extra_features, option_of, options, value_of
+from .unit import IrHvacUnit
 
 
 async def async_setup_entry(
@@ -17,23 +19,27 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """One select per feature with levels."""
-    _, selects = extra_features(entry.runtime_data.capabilities)
-    async_add_entities(IrHvacFeatureSelect(entry, feature) for feature in selects)
+    for subentry_id, unit in entry.runtime_data.items():
+        _, selects = extra_features(unit.capabilities)
+        subentry = entry.subentries[subentry_id]
+        async_add_entities(
+            (IrHvacFeatureSelect(subentry, unit, feature) for feature in selects),
+            config_subentry_id=subentry_id,
+        )
 
 
 class IrHvacFeatureSelect(IrHvacNamedEntity, SelectEntity):
     """A pyhvac feature with levels."""
 
-    def __init__(self, entry: IrHvacConfigEntry, feature: str) -> None:
+    def __init__(
+        self, subentry: ConfigSubentry, unit: IrHvacUnit, feature: str
+    ) -> None:
         super().__init__(
-            entry,
-            entry.runtime_data,
-            feature,
-            feature.replace("_", " ").capitalize(),
+            subentry, unit, feature, feature.replace("_", " ").capitalize()
         )
         self.feature = feature
         self.choice = self.unit.capabilities.features[feature]
-        self._attr_unique_id = f"{entry.entry_id}_{feature}"
+        self._attr_unique_id = f"{subentry.subentry_id}_{feature}"
         self._attr_options = options(self.choice)
 
     @property

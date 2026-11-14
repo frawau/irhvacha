@@ -1,6 +1,7 @@
 """Constants for IR HVAC."""
 
 DOMAIN = "irhvac"
+SUBENTRY_UNIT = "unit"  # config subentry type of an A/C unit
 
 CONF_BRAND = "brand"
 CONF_MODEL = "model"

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from homeassistant.components.infrared import InfraredEmitterConsumerEntity
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import DOMAIN
@@ -15,14 +15,14 @@ class IrHvacEntity(InfraredEmitterConsumerEntity):
 
     _attr_has_entity_name = True
 
-    def __init__(self, entry: ConfigEntry, unit: IrHvacUnit) -> None:
+    def __init__(self, subentry: ConfigSubentry, unit: IrHvacUnit) -> None:
         self.unit = unit
         self._infrared_emitter_entity_id = unit.emitter
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
+            identifiers={(DOMAIN, subentry.subentry_id)},
             manufacturer=unit.brand,
             model=unit.model,
-            name=entry.title,
+            name=subentry.title,
         )
 
     async def async_added_to_hass(self) -> None:
@@ -49,9 +49,9 @@ class IrHvacNamedEntity(IrHvacEntity):
     """A feature or action entity: translated name, or pyhvac's name."""
 
     def __init__(
-        self, entry: ConfigEntry, unit: IrHvacUnit, key: str, fallback: str
+        self, subentry: ConfigSubentry, unit: IrHvacUnit, key: str, fallback: str
     ) -> None:
-        super().__init__(entry, unit)
+        super().__init__(subentry, unit)
         if key in TRANSLATED:
             self._attr_translation_key = key
         else:

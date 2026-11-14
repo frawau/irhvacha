@@ -36,7 +36,9 @@ Assistant.
 
 ## Adding a unit
 
-Settings > Devices & services > Add integration > IR HVAC, then:
+Add the integration once: Settings > Devices & services > Add integration >
+IR HVAC. Then, for each air conditioner, open IR HVAC and use
+**Add A/C unit**:
 
 1. Pick the brand of the unit, or of its remote control.
 2. Pick the model. Entries marked "(remote)" are remote controls: pick
@@ -45,9 +47,9 @@ Settings > Devices & services > Add integration > IR HVAC, then:
 4. Optionally pick a room temperature sensor, a room humidity sensor and a
    power sensor (see [Power sensor](docs/power-sensor.md)).
 
-Add the integration once per unit. Several units can share one emitter.
-The emitter and the sensors can be changed later with Configure; to change
-the brand or model, remove the unit and add it again.
+Several units can share one emitter. **Reconfigure** on a unit changes its
+emitter and sensors; to change the brand or model, delete the unit and add
+it again.
 
 ## What you get
 
@@ -85,9 +87,9 @@ automatically; update it in the Marketplace and restart.
 
 ## Removal
 
-Remove each unit in Settings > Devices & services > IR HVAC (its stored
-state is deleted with it), then remove IR HVAC in the Marketplace (or HACS)
-and restart.
+Delete a unit from the IR HVAC integration page; its device, entities and
+stored state go with it. To remove everything, delete the IR HVAC
+integration, then remove IR HVAC in the Marketplace (or HACS) and restart.
 
 ## Credits
 
