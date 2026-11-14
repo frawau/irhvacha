@@ -48,6 +48,28 @@ def target_step(caps: Capabilities) -> float:
     return 0.1
 
 
+def setpoint(caps: Capabilities, current: float, requested: float) -> float:
+    """The allowed setpoint for ``requested``, moving away from ``current``.
+
+    A °F step converted to °C can snap back onto the current setpoint; then
+    the next allowed setpoint in the requested direction is taken instead.
+    """
+    rng = caps.temperature
+    snapped = rng.snap(requested)
+    if requested > current >= snapped:
+        direction = 1
+    elif requested < current <= snapped:
+        direction = -1
+    else:
+        return snapped
+    tenths = round(current * 10)
+    while rng.min <= tenths / 10 <= rng.max:
+        tenths += direction
+        if (candidate := rng.snap(tenths / 10)) != current:
+            return candidate
+    return current
+
+
 def options(choice: Choice) -> list[str]:
     """The choice's values as HA options: labels where pyhvac has them."""
     return [option_of(choice, value) for value in choice.values]

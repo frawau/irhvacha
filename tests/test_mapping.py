@@ -88,3 +88,15 @@ def test_state_round_trip():
         True, "heat", 22.5, fan="2", features={"economy": "60", "light": True}
     )
     assert state_from_dict(state_to_dict(s)) == s
+
+
+def test_setpoint_moves_in_the_requested_direction():  # Final review 2
+    from custom_components.irhvac.mapping import setpoint
+
+    caps = registry.get_device("Airwell", "DC Series").capabilities
+    assert setpoint(caps, 24.0, 24.44) == 25.0
+    assert setpoint(caps, 22.0, 21.67) == 21.0
+    assert setpoint(caps, 24.0, 23.3) == 23.0
+    assert setpoint(caps, 24.0, 24.0) == 24.0
+    assert setpoint(caps, caps.temperature.max, 99) == caps.temperature.max
+    assert setpoint(caps, caps.temperature.min, -5) == caps.temperature.min

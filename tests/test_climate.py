@@ -195,3 +195,27 @@ async def test_send_failure_raises_to_caller(hass, emitter):
     with pytest.raises(HomeAssistantError):
         await call(hass, "set_hvac_mode", eid, hvac_mode=HVACMode.COOL)
     assert hass.states.get(eid).state == HVACMode.OFF
+
+
+async def test_fahrenheit_steps_never_stick(hass, emitter):  # Final review 2
+    hass.config.units = US_CUSTOMARY_SYSTEM
+    entry = await add_unit(hass, emitter, "Airwell", "DC Series")
+    eid = climate_id(hass, entry)
+    await call(hass, "set_temperature", eid, temperature=75, hvac_mode=HVACMode.COOL)
+    assert hass.states.get(eid).attributes["temperature"] == 75
+    await call(hass, "set_temperature", eid, temperature=76)  # 24.44 °C
+    assert entry.runtime_data.state.temperature == 25.0
+    assert hass.states.get(eid).attributes["temperature"] == 77
+    await call(hass, "set_temperature", eid, temperature=72)  # 22.22 °C
+    assert entry.runtime_data.state.temperature == 22.0
+    await call(hass, "set_temperature", eid, temperature=71)  # 21.67 °C
+    assert entry.runtime_data.state.temperature == 21.0
+
+
+async def test_power_sensor_on_at_setup(hass, emitter):  # Final review 3
+    hass.states.async_set("binary_sensor.ac", "on")
+    entry = await add_unit(hass, emitter, power_sensor="binary_sensor.ac")
+    unit = entry.runtime_data
+    assert hass.states.get(climate_id(hass, entry)).state != HVACMode.OFF
+    assert unit.state.power is True
+    assert emitter.sent == []

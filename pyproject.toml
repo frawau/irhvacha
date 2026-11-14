@@ -4,4 +4,4 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.black]
-target-version = ["py313"]
+target-version = ["py314"]

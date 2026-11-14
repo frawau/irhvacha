@@ -39,6 +39,7 @@ from .mapping import (
     preset_modes,
     preset_of,
     pyhvac_mode,
+    setpoint,
     target_step,
     value_of,
     with_preset,
@@ -159,13 +160,30 @@ class IrHvacClimate(IrHvacEntity, ClimateEntity):
     async def async_set_temperature(self, **kwargs: Any) -> None:
         changes: dict[str, Any] = {}
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is not None:
-            changes["temperature"] = float(temperature)
+            changes["temperature"] = self._setpoint(float(temperature))
         if (hvac_mode := kwargs.get(ATTR_HVAC_MODE)) is not None:
             if hvac_mode == HVACMode.OFF:
                 changes["power"] = False
             else:
                 changes.update(power=True, mode=pyhvac_mode(hvac_mode))
         await self._set(**changes)
+
+    def _setpoint(self, celsius: float) -> float:
+        """The setpoint for a request; a step the user sees never sticks.
+
+        HA steps °F displays by whole degrees, which can snap back onto the
+        current °C setpoint: then the next setpoint that way is taken.
+        """
+        current = self.unit.state.temperature
+        shown_unit = self.hass.config.units.temperature_unit
+        if shown_unit == UnitOfTemperature.CELSIUS:
+            return celsius
+        to_shown = TemperatureConverter.converter_factory(
+            UnitOfTemperature.CELSIUS, shown_unit
+        )
+        if round(to_shown(celsius)) == round(to_shown(current)):
+            return current
+        return setpoint(self.unit.capabilities, current, celsius)
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         await self._set(fan=value_of(self.unit.capabilities.fan, fan_mode))
@@ -194,19 +212,25 @@ class IrHvacClimate(IrHvacEntity, ClimateEntity):
         for key in (CONF_TEMPERATURE_SENSOR, CONF_HUMIDITY_SENSOR):
             if self._sensors[key]:
                 self._read(key, self.hass.states.get(self._sensors[key]))
+        if power := self._sensors[CONF_POWER_SENSOR]:
+            self._power(self.hass.states.get(power))
 
     @callback
     def _sensor_changed(self, event: Event[EventStateChangedData]) -> None:
         entity_id = event.data["entity_id"]
         new_state = event.data["new_state"]
         if entity_id == self._sensors[CONF_POWER_SENSOR]:
-            if new_state is not None and new_state.state in (STATE_ON, STATE_OFF):
-                self.unit.power_reported(new_state.state == STATE_ON)
+            self._power(new_state)
             return
         for key in (CONF_TEMPERATURE_SENSOR, CONF_HUMIDITY_SENSOR):
             if entity_id == self._sensors[key]:
                 self._read(key, new_state)
         self.async_write_ha_state()
+
+    @callback
+    def _power(self, state: State | None) -> None:
+        if state is not None and state.state in (STATE_ON, STATE_OFF):
+            self.unit.power_reported(state.state == STATE_ON)
 
     @callback
     def _read(self, key: str, state: State | None) -> None:
