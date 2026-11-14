@@ -43,5 +43,43 @@
         }
       }
     }
+  },
+  "entity": {
+    "switch": {
+      "quiet": {
+        "name": "Quiet"
+      },
+      "light": {
+        "name": "Display light"
+      },
+      "cleaning": {
+        "name": "Self-cleaning"
+      },
+      "purifier": {
+        "name": "Air purifier"
+      },
+      "power_limit": {
+        "name": "Power limit"
+      }
+    },
+    "select": {
+      "economy": {
+        "name": "Economy"
+      },
+      "auto_bias": {
+        "name": "Auto bias"
+      },
+      "spot": {
+        "name": "Spot"
+      }
+    },
+    "button": {
+      "se_step": {
+        "name": "SE speed step"
+      },
+      "diagnostic": {
+        "name": "Diagnostic"
+      }
+    }
   }
 }

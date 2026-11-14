@@ -29,3 +29,30 @@ class IrHvacEntity(InfraredEmitterConsumerEntity):
         """Follow the unit's state."""
         await super().async_added_to_hass()
         self.async_on_remove(self.unit.add_listener(self.async_write_ha_state))
+
+
+TRANSLATED = {
+    "quiet",
+    "light",
+    "cleaning",
+    "purifier",
+    "economy",
+    "auto_bias",
+    "spot",
+    "power_limit",
+    "se_step",
+    "diagnostic",
+}
+
+
+class IrHvacNamedEntity(IrHvacEntity):
+    """A feature or action entity: translated name, or pyhvac's name."""
+
+    def __init__(
+        self, entry: ConfigEntry, unit: IrHvacUnit, key: str, fallback: str
+    ) -> None:
+        super().__init__(entry, unit)
+        if key in TRANSLATED:
+            self._attr_translation_key = key
+        else:
+            self._attr_name = fallback

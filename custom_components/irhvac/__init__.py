@@ -10,7 +10,12 @@ from homeassistant.helpers.storage import Store
 from .const import CONF_BRAND, CONF_EMITTER, CONF_MODEL, STORAGE_VERSION
 from .unit import IrHvacUnit
 
-PLATFORMS: list[Platform] = [Platform.CLIMATE]
+PLATFORMS: list[Platform] = [
+    Platform.CLIMATE,
+    Platform.SWITCH,
+    Platform.SELECT,
+    Platform.BUTTON,
+]
 
 type IrHvacConfigEntry = ConfigEntry[IrHvacUnit]
 
