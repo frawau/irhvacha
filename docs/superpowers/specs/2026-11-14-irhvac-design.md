@@ -31,7 +31,7 @@ core later.
 
 ## Goals
 
-- GUI-only setup (config flow + options flow); no YAML.
+- GUI-only setup (config flow + unit subentry flow); no YAML.
 - One HA device per A/C unit, with a climate entity whose options come
   entirely from pyhvac's capabilities for the chosen model.
 - Features that HA presets name (Boost, Eco, Sleep) are presets; the other
@@ -111,7 +111,15 @@ core later.
 Display name "IR HVAC", domain `irhvac`, repo `irhvacha`
 (`custom_components/irhvac/`).
 
-### Adding a unit (config flow)
+### The integration and its units (config entry + subentries)
+
+*Amended 2026-11-14 (user: "You add the integration once and then you add
+HVAC units"). 0.1.0 was never released, so nothing is migrated.*
+
+The integration is added once: a single config entry ("IR HVAC", manifest
+`single_config_entry: true`), created without questions, holding nothing
+itself. Each A/C unit is a config **subentry** of type `unit`, added with
+the "Add A/C unit" button on the integration page:
 
 1. Brand: searchable list from `pyhvac.registry.brands()`.
 2. Model: searchable list from `registry.models(brand)`; remotes (kind
@@ -121,13 +129,22 @@ Display name "IR HVAC", domain `irhvac`, repo `irhvacha`
 4. Optional: temperature sensor, humidity sensor, power sensor
    (`binary_sensor`).
 
-The entry title is "<brand> <model>"; the user can rename the device.
-Sensors and the emitter can be changed later in the options flow. Several
-units may share one emitter. The config entry's unique ID is
-emitter + brand + model (two identical units on the same emitter would
-receive the same codes anyway).
+The subentry title is "<brand> <model>"; the user can rename the device.
+Its data holds brand, model, emitter and sensors. "Reconfigure" on a unit
+changes the emitter and sensors; brand and model are fixed (delete the unit
+and add it again). Several units may share one emitter. A unit's unique ID
+is emitter + brand + model, unique within the entry (two identical units on
+the same emitter would receive the same codes anyway); reconfiguring moves
+it, and is refused when another unit already has the new one.
 
-### What HA shows (one device per entry)
+Each unit is its own device (identified by the subentry id) with its
+entities attached to its subentry. Adding, reconfiguring or deleting a unit
+reloads the entry; every unit's state is stored, so a reload loses nothing.
+Deleting a unit removes its stored state. A unit whose brand/model pyhvac
+no longer knows (should never happen: models are never dropped) is skipped
+with an error in the log; the other units still load.
+
+### What HA shows (one device per unit)
 
 Device: manufacturer = brand, model = model.
 
