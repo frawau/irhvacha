@@ -1,4 +1,7 @@
-pytest-homeassistant-custom-component
+# HA's test harness does not install core components' requirements:
+# keep infrared-protocols at the version the pinned HA's infrared uses.
+pytest-homeassistant-custom-component==0.13.375
+infrared-protocols==10.1.0
 pyhvac==0.2.0
 pytest-cov
 black
