@@ -8,7 +8,7 @@ from dataclasses import replace
 import logging
 
 from homeassistant.core import CALLBACK_TYPE, Context, HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryError
+from homeassistant.exceptions import ConfigEntryError, HomeAssistantError
 from homeassistant.helpers.storage import Store
 from pyhvac import registry
 from pyhvac.state import HvacState
@@ -53,6 +53,8 @@ class IrHvacUnit:
         self.previous: HvacState | None = None
         self._pending: HvacState = self.state
         self._lock = asyncio.Lock()
+        self._closed = False
+        self._save_task: asyncio.Task | None = None
         self._listeners: list[Callable[[], None]] = []
         self._store = unit_store(hass, unit_id)
 
@@ -112,6 +114,7 @@ class IrHvacUnit:
             pending = replace(pending, features={**pending.features, **features})
         self._pending = self.device.normalise(pending)
         async with self._lock:
+            self._raise_if_closed()
             target = self._pending
             if target == self.state:
                 return
@@ -125,7 +128,21 @@ class IrHvacUnit:
     async def async_action(self, name: str, *, context: Context | None = None) -> None:
         """Send the one-shot action ``name`` with the current state."""
         async with self._lock:
+            self._raise_if_closed()
             await self._async_send(self.state, (name,), context)
+
+    def _raise_if_closed(self) -> None:
+        if self._closed:
+            raise HomeAssistantError("IR HVAC is reloading; try again")
+
+    async def async_shutdown(self) -> None:
+        """Before a reload/unload: finish the send and save in progress, then
+        refuse new ones, so the next instance loads what was really sent."""
+        self._closed = True
+        async with self._lock:
+            pass
+        if self._save_task is not None:
+            await self._save_task
 
     async def _async_send(self, target, actions, context) -> None:
         command = self.device.encode(self.previous, target, actions)
@@ -148,5 +165,5 @@ class IrHvacUnit:
         self.state = self._pending = replace(self.state, power=on)
         if self.previous is not None:
             self.previous = replace(self.previous, power=on)
-        self.hass.async_create_task(self._async_save())
+        self._save_task = self.hass.async_create_task(self._async_save())
         self._notify()

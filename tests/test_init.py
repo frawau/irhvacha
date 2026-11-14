@@ -1,9 +1,13 @@
 """One IR HVAC entry holding the A/C units as subentries."""
 
+import asyncio
 import logging
+
+import pytest
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
@@ -110,3 +114,36 @@ async def test_removing_the_integration_removes_all_stores(hass, emitter):
     await hass.config_entries.async_remove(added.entry.entry_id)
     await hass.async_block_till_done()
     assert await Store(hass, STORAGE_VERSION, f"irhvac.{added.id}").async_load() is None
+
+
+async def test_reload_during_a_send_keeps_what_was_sent(hass, emitter):  # RF 5
+    first = await add_unit(hass, emitter, "Daikin", "FTXM20R5V1B")
+    emitter.delay = 0.2
+    send = hass.async_create_task(
+        hass.services.async_call(
+            "climate",
+            "set_hvac_mode",
+            {"entity_id": climate_id(hass, first.id), "hvac_mode": HVACMode.HEAT},
+            blocking=True,
+        )
+    )
+    await asyncio.sleep(0.05)
+    await add_unit(hass, emitter, "AEG", "Chillflex Pro AXP26U558HW")
+    await send
+    await hass.async_block_till_done()
+    assert len(emitter.sent) == 1
+    unit = first.unit
+    assert unit.state.power is True and unit.state.mode == "heat"
+    assert unit.previous == unit.state
+    assert hass.states.get(climate_id(hass, first.id)).state == HVACMode.HEAT
+
+
+async def test_closed_unit_sends_nothing(hass, emitter):
+    from custom_components.irhvac.unit import IrHvacUnit
+
+    unit = IrHvacUnit(hass, "u9", "Daikin", "FTXM20R5V1B", emitter.entity_id)
+    await unit.async_load()
+    await unit.async_shutdown()
+    with pytest.raises(HomeAssistantError):
+        await unit.async_set(power=True)
+    assert emitter.sent == []

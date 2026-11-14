@@ -66,8 +66,11 @@ async def _async_updated(
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: IrHvacConfigEntry) -> bool:
-    """Unload every unit."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    """Unload every unit, once its send in progress is done."""
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    for unit in entry.runtime_data.values():
+        await unit.async_shutdown()
+    return unloaded
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: IrHvacConfigEntry) -> None:
