@@ -1,4 +1,4 @@
-"""Config flow: brand, model, emitter and optional sensors; options flow."""
+"""Config flow: the integration once; a subentry flow per A/C unit."""
 
 from __future__ import annotations
 
@@ -10,7 +10,8 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    ConfigSubentryFlow,
+    SubentryFlowResult,
 )
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
@@ -32,6 +33,7 @@ from .const import (
     CONF_POWER_SENSOR,
     CONF_TEMPERATURE_SENSOR,
     DOMAIN,
+    SUBENTRY_UNIT,
 )
 
 _REMOTES = {
@@ -78,17 +80,45 @@ def _unit_fields(emitters: list[str], current: dict[str, Any]) -> dict:
     }
 
 
+def _unique_id(data: dict[str, Any]) -> str:
+    return f"{data[CONF_EMITTER]}|{data[CONF_BRAND]}|{data[CONF_MODEL]}"
+
+
 class IrHvacConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Add one A/C unit."""
+    """Add the integration (once); units are added as subentries."""
 
     VERSION = 1
-
-    def __init__(self) -> None:
-        self._brand: str | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Nothing to ask."""
+        return self.async_create_entry(title="IR HVAC", data={})
+
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(
+        cls, config_entry: ConfigEntry
+    ) -> dict[str, type[ConfigSubentryFlow]]:
+        """A/C units."""
+        return {SUBENTRY_UNIT: UnitSubentryFlow}
+
+
+class UnitSubentryFlow(ConfigSubentryFlow):
+    """Add an A/C unit, or change its emitter and sensors."""
+
+    def __init__(self) -> None:
+        self._brand: str | None = None
+
+    def _taken(self, unique_id: str, but: str | None = None) -> bool:
+        return any(
+            sub.unique_id == unique_id and sub.subentry_id != but
+            for sub in self._get_entry().subentries.values()
+        )
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
         """Pick the brand."""
         if not infrared.async_get_emitters(self.hass):
             return self.async_abort(reason="no_emitters")
@@ -111,19 +141,16 @@ class IrHvacConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_device(
         self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    ) -> SubentryFlowResult:
         """Pick the model, the emitter and optional sensors."""
         brand = self._brand
         if user_input is not None and CONF_MODEL in user_input:
-            model = user_input.pop(CONF_MODEL)
-            await self.async_set_unique_id(
-                f"{user_input[CONF_EMITTER]}|{brand}|{model}"
-            )
-            self._abort_if_unique_id_configured()
+            data = {CONF_BRAND: brand, **user_input}
+            unique_id = _unique_id(data)
+            if self._taken(unique_id):
+                return self.async_abort(reason="already_configured")
             return self.async_create_entry(
-                title=f"{brand} {model}",
-                data={CONF_BRAND: brand, CONF_MODEL: model},
-                options=user_input,
+                title=f"{brand} {data[CONF_MODEL]}", data=data, unique_id=unique_id
             )
         emitters = infrared.async_get_emitters(self.hass)
         return self.async_show_form(
@@ -142,26 +169,26 @@ class IrHvacConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={"brand": brand},
         )
 
-    @staticmethod
-    @callback
-    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
-        """Change the emitter and sensors."""
-        return IrHvacOptionsFlow()
-
-
-class IrHvacOptionsFlow(OptionsFlow):
-    """Change the emitter and sensors of a unit (brand/model: re-add it)."""
-
-    async def async_step_init(
+    async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """The only step."""
+    ) -> SubentryFlowResult:
+        """Change the emitter and sensors (brand/model: re-add the unit)."""
+        subentry = self._get_reconfigure_subentry()
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            data = {
+                CONF_BRAND: subentry.data[CONF_BRAND],
+                CONF_MODEL: subentry.data[CONF_MODEL],
+                **user_input,
+            }
+            unique_id = _unique_id(data)
+            if self._taken(unique_id, but=subentry.subentry_id):
+                return self.async_abort(reason="already_configured")
+            return self.async_update_and_abort(
+                self._get_entry(), subentry, data=data, unique_id=unique_id
+            )
         emitters = infrared.async_get_emitters(self.hass)
         return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                _unit_fields(emitters, dict(self.config_entry.options))
-            ),
+            step_id="reconfigure",
+            data_schema=vol.Schema(_unit_fields(emitters, dict(subentry.data))),
+            description_placeholders={"unit": subentry.title},
         )

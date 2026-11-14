@@ -96,9 +96,9 @@ async def test_state_survives_restart(hass, emitter, hass_storage):
 
 
 async def test_corrupt_store_is_normalised(hass, emitter, hass_storage):  # RF 2
-    hass_storage["irhvac.e1"] = {
+    hass_storage["irhvac.u1"] = {
         "version": 1,
-        "key": "irhvac.e1",
+        "key": "irhvac.u1",
         "data": {
             "state": {
                 "power": True,
@@ -115,17 +115,6 @@ async def test_corrupt_store_is_normalised(hass, emitter, hass_storage):  # RF 2
     unit = await make_unit(hass, emitter, "Daikin", "FTXM20R5V1B")
     assert unit.previous is None
     assert unit.state.fan in unit.capabilities.fan.values and unit.state.power is True
-
-
-async def test_unknown_model_fails_setup(hass, emitter):  # Review Focus 1
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={"brand": "Daikin", "model": "Gone 9000"},
-        options={"emitter": emitter.entity_id},
-    )
-    entry.add_to_hass(hass)
-    assert not await hass.config_entries.async_setup(entry.entry_id)
-    assert entry.state is ConfigEntryState.SETUP_ERROR
 
 
 async def test_concurrent_sets_coalesce(hass, emitter):

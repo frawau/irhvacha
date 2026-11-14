@@ -2,45 +2,56 @@
   "config": {
     "step": {
       "user": {
-        "title": "Add an air conditioner",
-        "description": "Pick the brand of the unit or of its remote control.",
-        "data": {
-          "brand": "Brand"
-        }
-      },
-      "device": {
-        "title": "{brand} unit",
-        "description": "Pick the model (or its remote control), the infrared emitter that reaches it, and optional sensors.",
-        "data": {
-          "model": "Model",
-          "emitter": "Infrared emitter",
-          "temperature_sensor": "Room temperature sensor",
-          "humidity_sensor": "Room humidity sensor",
-          "power_sensor": "Power sensor"
-        },
-        "data_description": {
-          "power_sensor": "An on/off sensor that tells when the unit runs, so Home Assistant follows changes made with the remote control."
-        }
+        "title": "IR HVAC",
+        "description": "Adds IR HVAC. Then add each air conditioner with \"Add A/C unit\" on the integration's page."
       }
-    },
-    "abort": {
-      "no_emitters": "No infrared emitter found. Set up an integration that provides one (Broadlink, ESPHome, ...) first.",
-      "already_configured": "This unit is already set up on this emitter."
     }
   },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Emitter and sensors",
-        "data": {
-          "emitter": "Infrared emitter",
-          "temperature_sensor": "Room temperature sensor",
-          "humidity_sensor": "Room humidity sensor",
-          "power_sensor": "Power sensor"
+  "config_subentries": {
+    "unit": {
+      "entry_type": "A/C unit",
+      "initiate_flow": {
+        "user": "Add A/C unit"
+      },
+      "step": {
+        "user": {
+          "title": "Add an air conditioner",
+          "description": "Pick the brand of the unit or of its remote control.",
+          "data": {
+            "brand": "Brand"
+          }
         },
-        "data_description": {
-          "power_sensor": "An on/off sensor that tells when the unit runs, so Home Assistant follows changes made with the remote control."
+        "device": {
+          "title": "{brand} unit",
+          "description": "Pick the model (or its remote control), the infrared emitter that reaches it, and optional sensors.",
+          "data": {
+            "model": "Model",
+            "emitter": "Infrared emitter",
+            "temperature_sensor": "Room temperature sensor",
+            "humidity_sensor": "Room humidity sensor",
+            "power_sensor": "Power sensor"
+          },
+          "data_description": {
+            "power_sensor": "An on/off sensor that tells when the unit runs, so Home Assistant follows changes made with the remote control."
+          }
+        },
+        "reconfigure": {
+          "title": "{unit}: emitter and sensors",
+          "description": "Brand and model cannot change: delete the unit and add it again for that.",
+          "data": {
+            "emitter": "Infrared emitter",
+            "temperature_sensor": "Room temperature sensor",
+            "humidity_sensor": "Room humidity sensor",
+            "power_sensor": "Power sensor"
+          },
+          "data_description": {
+            "power_sensor": "An on/off sensor that tells when the unit runs, so Home Assistant follows changes made with the remote control."
+          }
         }
+      },
+      "abort": {
+        "no_emitters": "No infrared emitter found. Set up an integration that provides one (Broadlink, ESPHome, ...) first.",
+        "already_configured": "This unit is already set up on this emitter."
       }
     }
   },

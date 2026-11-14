@@ -2,15 +2,23 @@
 
 import custom_components.irhvac  # noqa: F401  (HA must load ours, not the plugin's bundled package)
 import asyncio
+from dataclasses import dataclass
 
 import pytest
 from homeassistant.components.infrared import InfraredEmitterEntity
 from homeassistant.components.infrared.const import DATA_COMPONENT
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.irhvac.const import CONF_BRAND, CONF_EMITTER, CONF_MODEL, DOMAIN
+from custom_components.irhvac.const import (
+    CONF_BRAND,
+    CONF_EMITTER,
+    CONF_MODEL,
+    DOMAIN,
+    SUBENTRY_UNIT,
+)
 from custom_components.irhvac.unit import IrHvacUnit
 
 pytest_plugins = "pytest_homeassistant_custom_component"
@@ -50,25 +58,56 @@ async def emitter(hass):
     return fake
 
 
-async def make_unit(hass, emitter, brand, model, entry_id="e1") -> IrHvacUnit:
+async def make_unit(hass, emitter, brand, model, unit_id="u1") -> IrHvacUnit:
     """An IrHvacUnit on the fake emitter, loaded from storage."""
-    unit = IrHvacUnit(hass, entry_id, brand, model, emitter.entity_id)
+    unit = IrHvacUnit(hass, unit_id, brand, model, emitter.entity_id)
     await unit.async_load()
     return unit
 
 
+def unit_subentry(brand, model, **data) -> dict:
+    """``subentries_data`` for one unit."""
+    return {
+        "data": {CONF_BRAND: brand, CONF_MODEL: model, **data},
+        "subentry_type": SUBENTRY_UNIT,
+        "title": f"{brand} {model}",
+        "unique_id": f"{data.get(CONF_EMITTER)}|{brand}|{model}",
+    }
+
+
+@dataclass
+class Added:
+    """A unit added by ``add_unit``: its entry, subentry id and unit."""
+
+    entry: ConfigEntry
+    id: str
+
+    @property
+    def unit(self) -> IrHvacUnit:
+        return self.entry.runtime_data[self.id]
+
+
 async def add_unit(
     hass, emitter, brand="Mitsubishi Electric", model="MSZ-GV2519", **options
-) -> MockConfigEntry:
-    """A set-up config entry for one unit."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        title=f"{brand} {model}",
-        data={CONF_BRAND: brand, CONF_MODEL: model},
-        options={CONF_EMITTER: emitter.entity_id, **options},
-        unique_id=f"{emitter.entity_id}|{brand}|{model}",
+) -> Added:
+    """Add a unit to the IR HVAC entry (set up on first use)."""
+    sub = unit_subentry(brand, model, **{CONF_EMITTER: emitter.entity_id, **options})
+    entries = hass.config_entries.async_entries(DOMAIN)
+    if not entries:
+        entry = MockConfigEntry(
+            domain=DOMAIN, title="IR HVAC", data={}, subentries_data=[sub]
+        )
+        entry.add_to_hass(hass)
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        return Added(entry, next(iter(entry.subentries)))
+    entry = entries[0]
+    subentry = ConfigSubentry(
+        data=sub["data"],
+        subentry_type=SUBENTRY_UNIT,
+        title=sub["title"],
+        unique_id=sub["unique_id"],
     )
-    entry.add_to_hass(hass)
-    assert await hass.config_entries.async_setup(entry.entry_id)
+    hass.config_entries.async_add_subentry(entry, subentry)
     await hass.async_block_till_done()
-    return entry
+    return Added(entry, subentry.subentry_id)

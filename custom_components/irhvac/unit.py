@@ -22,6 +22,11 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_SETPOINT = 24.0  # °C
 
 
+def unit_store(hass: HomeAssistant, unit_id: str) -> Store:
+    """Where the unit ``unit_id`` keeps its state."""
+    return Store(hass, STORAGE_VERSION, f"irhvac.{unit_id}")
+
+
 class IrHvacUnit:
     """Desired state, last-sent ("previous") state, persistence and sending.
 
@@ -31,7 +36,7 @@ class IrHvacUnit:
     """
 
     def __init__(
-        self, hass: HomeAssistant, entry_id: str, brand: str, model: str, emitter: str
+        self, hass: HomeAssistant, unit_id: str, brand: str, model: str, emitter: str
     ) -> None:
         try:
             self.device = registry.get_device(brand, model)
@@ -49,7 +54,7 @@ class IrHvacUnit:
         self._pending: HvacState = self.state
         self._lock = asyncio.Lock()
         self._listeners: list[Callable[[], None]] = []
-        self._store: Store = Store(hass, STORAGE_VERSION, f"irhvac.{entry_id}")
+        self._store = unit_store(hass, unit_id)
 
     def _default_state(self) -> HvacState:
         caps = self.capabilities
