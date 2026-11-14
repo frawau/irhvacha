@@ -25,10 +25,9 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 class FakeEmitter(InfraredEmitterEntity):
     """Records what it is asked to send; raises when ``fail`` is set."""
 
-    _attr_unique_id = "fake_emitter"
-    _attr_name = "Fake emitter"
-
-    def __init__(self):
+    def __init__(self, name="Fake emitter"):
+        self._attr_name = name
+        self._attr_unique_id = name.lower().replace(" ", "_")
         self.sent: list[tuple[int, list[int]]] = []
         self.fail = False
         self.delay = 0.0
