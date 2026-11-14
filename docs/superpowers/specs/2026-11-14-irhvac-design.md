@@ -24,8 +24,9 @@ Why a new integration:
   models and remotes from 121 brands, and tells exactly what each model can
   do (`device.capabilities`).
 
-Audience: everyone, through HACS (custom repository first, then the HACS
-default list). Built to Home Assistant core standards so it can move into
+Audience: everyone, through the Home Assistant Marketplace (built into HA
+since 2026.11; it replaced HACS and uses the same catalog, `hacs/default`,
+and the same `hacs.json`): added by link first, then listed in the catalog. Built to Home Assistant core standards so it can move into
 core later.
 
 ## Goals
@@ -68,8 +69,22 @@ core later.
 
 ## Constraints
 
-- Home Assistant >= 2026.4 (the `infrared` building block). Manifest:
-  `"dependencies": ["infrared"]`, `"requirements": ["pyhvac>=0.2.0,<0.3"]`.
+- Home Assistant >= 2026.6: the `infrared` building block arrived in
+  2026.4, but `InfraredEmitterConsumerEntity` and the signed-int
+  `Command.get_raw_timings()` contract (infrared-protocols >= 5) only in
+  2026.6 (checked in the HA 2026.4/2026.5/2026.6 wheels). Manifest:
+  `"dependencies": ["infrared"]`, `"requirements": ["pyhvac==0.2.0"]` (the
+  Marketplace wants requirements pinned exactly); `infrared-protocols` is
+  not listed (HA's `infrared` component pins it). Users on HA 2026.6-2026.10
+  install through HACS; 2026.11+ through the Marketplace.
+- Marketplace rules: `hacs.json` (`name`, `homeassistant` = minimum HA)
+  in the repo root; manifest keys `domain`, `name`, `codeowners`,
+  `documentation`, `issue_tracker`, `version` (= the GitHub release tag);
+  only `translations/en.json` (no `strings.json` in a custom integration);
+  brand images in `custom_components/irhvac/brand/` (`icon.png` 256 px,
+  `icon@2x.png` 512 px, `logo.png`, `logo@2x.png`); the HACS action and
+  hassfest pass with no ignored checks; the repo has a description, topics,
+  issues enabled and published GitHub releases (a tag alone is not enough).
 - Core quality bar: Bronze rules of the integration quality scale (config
   flow with full test coverage, unique IDs, `has_entity_name`,
   `runtime_data`, entity event setup in `async_added_to_hass`, unique config
@@ -78,10 +93,10 @@ core later.
 
 ## Approaches
 
-- **A. HACS integration built to core standards — chosen.** Config flow
+- **A. Marketplace (HACS) integration built to core standards — chosen.** Config flow
   only, translations, diagnostics, tests with
   `pytest-homeassistant-custom-component`, Bronze quality scale. Ships on our
-  schedule via HACS; moving into core later is mostly copying the folder.
+  schedule via the Marketplace; moving into core later is mostly copying the folder.
   Costs more up front (tests, review rules).
 - **B. HACS-only, quick.** Same features, minimal tests, core rules ignored.
   Faster first release, but most of it would be redone for core, and the
@@ -174,7 +189,8 @@ Two places need care:
 ### State and sending
 
 - The integration keeps the last state it sent (a pyhvac `HvacState`) and
-  restores it after an HA restart (RestoreEntity). Each change builds the
+  restores it after an HA restart (per-unit HA storage, shared by the
+  unit's entities). Each change builds the
   target state and calls `device.encode(previous, target)`; after a
   successful send, target becomes previous. With no previous (first use),
   `previous=None` sends the full state.
@@ -183,9 +199,11 @@ Two places need care:
   a select sends nothing: the change is stored and goes out with the next
   power-on. *(Our call: many units beep or react to an off frame, and most
   remotes send nothing for these keys while off.)*
-- Changes are sent immediately; bursts (e.g. dragging the setpoint) are
-  coalesced so only the final state is sent after a short delay *(builder's
-  call: around 0.5 s)*.
+- Changes are sent immediately; changes that arrive while a send is in
+  flight are coalesced so only the newest state follows *(builder's call,
+  instead of a fixed delay: HA's frontend already sends the setpoint on
+  slider release, and a delay would return service calls before the send,
+  so send errors could not reach the user)*.
 - A send failure (emitter unavailable, `HomeAssistantError`) is surfaced to
   the user and does not update previous.
 - The climate and feature entities are unavailable while the emitter is
@@ -219,13 +237,14 @@ transmitters are entities too since HA 2026.5).
 
 ### Documentation (README + HA-style docs)
 
-- What it connects to, prerequisites (HA >= 2026.4, an IR emitter entity),
-  installation via HACS, setup, options, removal, entities and presets.
+- What it connects to, prerequisites (HA >= 2026.6, an IR emitter entity),
+  installation via the Marketplace (HACS before HA 2026.11), setup,
+  options, removal, entities and presets.
 - Supported units: link to pyhvac's model list.
 - **Getting your unit supported:** record your remote with a Broadlink and
   pyhvac's `tools/hvactest`, then open a pyhvac issue with the captures;
   once a pyhvac release adds it, an integration release follows
-  automatically; update it in HACS and the unit appears in the model list.
+  automatically; update it in the Marketplace and the unit appears in the model list.
 - Power sensor examples (smart-plug threshold via a template
   binary_sensor).
 
@@ -240,18 +259,20 @@ transmitters are entities too since HA 2026.5).
 
 ### Distribution
 
-- GitHub releases; HACS custom repository, then the HACS default list.
+- GitHub releases (tag = manifest `version`, no "v" prefix); users add the
+  repo by link (the `marketplace_repository` My Home Assistant link) until
+  the catalog PR to `hacs/default` is merged (reviews take months).
 - **New pyhvac releases reach users automatically.** HA installs a
-  requirement only when the installed version does not satisfy it, so a
-  range like `pyhvac>=0.2.0,<0.3` would never pull in a pyhvac release that
-  adds models. Instead, a pyhvac GitHub release triggers a workflow in
-  `irhvacha` (`repository_dispatch`, sent by pyhvac's release workflow with
-  a token) that raises the manifest's minimum pyhvac version to the new
-  release, runs the tests, and on success cuts an integration release (patch
-  version bump); HACS then offers users the update. A failing test stops
-  the release and leaves the bump as a PR. A pyhvac minor release (0.3) is
-  not taken automatically.
-- Brand icon/logo as HACS and HA require.
+  requirement only when the installed version does not satisfy it, and the
+  Marketplace wants an exact pin anyway. A pyhvac GitHub release triggers a
+  workflow in `irhvacha` (`repository_dispatch`, sent by pyhvac's release
+  workflow with a token) that sets the pin to the new release, runs the
+  tests, and on success cuts an integration release (patch version bump);
+  the Marketplace then offers users the update (catalog refresh takes a few
+  hours; updates need an HA restart, which the Marketplace raises as a
+  repair). A failing test stops the release and leaves the bump as a PR. A
+  pyhvac minor release (0.3) is not taken automatically.
+- Brand icon and logo in the integration's `brand/` folder, shipped in every release.
 
 ## Left to the builder
 
