@@ -38,11 +38,14 @@ class FakeEmitter(InfraredEmitterEntity):
         self._attr_unique_id = name.lower().replace(" ", "_")
         self.sent: list[tuple[int, list[int]]] = []
         self.fail = False
+        self.error: Exception | None = None  # raised as is, when set
         self.delay = 0.0
 
     async def async_send_command(self, command):
         if self.delay:
             await asyncio.sleep(self.delay)
+        if self.error is not None:
+            raise self.error
         if self.fail:
             raise HomeAssistantError("emitter offline")
         self.sent.append((command.modulation, command.get_raw_timings()))

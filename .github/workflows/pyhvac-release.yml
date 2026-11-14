@@ -12,6 +12,11 @@ on:
         description: "pyhvac version"
         required: true
 
+# One follow-up at a time: a second release waits for the first to land.
+concurrency:
+  group: follow-pyhvac
+  cancel-in-progress: false
+
 permissions:
   contents: write
   pull-requests: write
@@ -30,14 +35,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-      - name: Wait for the release on PyPI
-        run: |
-          v="${PYHVAC#v}"
-          for i in $(seq 1 40); do
-            pip index versions pyhvac 2>/dev/null | grep -qw "$v" && exit 0
-            sleep 15
-          done
-          echo "pyhvac $v is not on PyPI" >&2; exit 1
       - name: Pin it
         id: bump
         run: |
@@ -46,7 +43,7 @@ jobs:
           code=$?
           set -e
           if [ "$code" = 3 ]; then
-            echo "pyhvac $PYHVAC is already pinned: nothing to do"
+            echo "pyhvac $PYHVAC is a pre-release or already pinned: nothing to do"
             echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
           if [ "$code" = 2 ]; then
@@ -56,6 +53,15 @@ jobs:
           fi
           [ "$code" = 0 ] || exit "$code"
           echo "version=$new" >> "$GITHUB_OUTPUT"
+      - name: Wait for the release on PyPI
+        if: steps.bump.outputs.skip != 'true'
+        run: |
+          v="${PYHVAC#v}"
+          for i in $(seq 1 40); do
+            pip index versions pyhvac 2>/dev/null | grep -qw "$v" && exit 0
+            sleep 15
+          done
+          echo "pyhvac $v is not on PyPI" >&2; exit 1
       - name: Test
         id: test
         if: steps.bump.outputs.skip != 'true'

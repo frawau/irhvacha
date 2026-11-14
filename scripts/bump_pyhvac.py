@@ -3,7 +3,8 @@
     python scripts/bump_pyhvac.py v0.2.1
 
 Prints the new integration version. Files are untouched and the exit code
-is 3 when the release is not newer than the current pin (nothing to do), or
+is 3 when the release is a pre-release or not newer than the current pin
+(nothing to do), or
 2 when it changes major.minor (a pyhvac minor release is not taken
 automatically: update by hand).
 """
@@ -20,14 +21,23 @@ REQUIREMENTS = Path("requirements_test.txt")
 PIN = re.compile(r"^pyhvac==(\S+)$", re.MULTILINE)
 
 
-def _version(text: str) -> tuple[int, int, int]:
-    major, minor, patch = (int(p) for p in text.removeprefix("v").split("."))
+FINAL = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
+
+
+def _version(text: str) -> tuple[int, int, int] | None:
+    """(major, minor, patch), or None for a pre-release such as 0.2.1rc1."""
+    if (match := FINAL.match(text)) is None:
+        return None
+    major, minor, patch = (int(p) for p in match.groups())
     return major, minor, patch
 
 
 def main(argv: list[str], root: Path = Path(".")) -> int:
     """Apply the bump under ``root``; return the exit code."""
     new = _version(argv[0])
+    if new is None:
+        print(f"pyhvac {argv[0]} is a pre-release: nothing to do", file=sys.stderr)
+        return 3
     new_text = ".".join(map(str, new))
     manifest_path, reqs_path = root / MANIFEST, root / REQUIREMENTS
     manifest = json.loads(manifest_path.read_text())

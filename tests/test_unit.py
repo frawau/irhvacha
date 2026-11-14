@@ -128,3 +128,11 @@ async def test_concurrent_sets_coalesce(hass, emitter):
         unit.async_set(temperature=22.0),
     )
     assert len(emitter.sent) == 2 and unit.state.temperature == 22.0
+
+
+async def test_emitter_errors_reach_the_user_as_ha_errors(hass, emitter):
+    unit = await make_unit(hass, emitter, "AEG", "Chillflex Pro AXP26U338CW")
+    emitter.error = OSError("network unreachable")
+    with pytest.raises(HomeAssistantError, match="network unreachable"):
+        await unit.async_set(power=True, mode="cool")
+    assert unit.state.power is False and unit.previous is None

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from homeassistant.components.climate import (
@@ -37,6 +38,7 @@ from .mapping import (
     hvac_modes,
     option_of,
     options,
+    preset_features,
     preset_modes,
     preset_of,
     pyhvac_mode,
@@ -67,9 +69,10 @@ def _number(state: State | None) -> float | None:
     if state is None:
         return None
     try:
-        return float(state.state)
+        value = float(state.state)
     except ValueError:
         return None
+    return value if math.isfinite(value) else None
 
 
 class IrHvacClimate(IrHvacEntity, ClimateEntity):
@@ -202,8 +205,10 @@ class IrHvacClimate(IrHvacEntity, ClimateEntity):
         )
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
-        state = with_preset(self.unit.state, self.unit.capabilities, preset_mode)
-        await self._set(features=dict(state.features))
+        caps = self.unit.capabilities
+        state = with_preset(self.unit.state, caps, preset_mode)
+        presets = preset_features(caps).values()
+        await self._set(features={f: state.features[f] for f in presets})
 
     # -- sensors ----------------------------------------------------------------
 

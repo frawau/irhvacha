@@ -148,10 +148,15 @@ class IrHvacUnit:
         command = self.device.encode(self.previous, target, actions)
         try:
             await async_send_signal(self.hass, self.emitter, command.signal, context)
-        except Exception:
+        except Exception as err:
+            # A change queued during this send was built on this one and
+            # still carries it: the newest wish is sent, as the caller of
+            # that change expects.
             if self._pending is target:  # nothing newer queued: drop the change
                 self._pending = self.state
-            raise
+            if isinstance(err, HomeAssistantError):
+                raise
+            raise HomeAssistantError(f"{self.emitter} could not send: {err}") from err
         self.previous = self.state = command.state
         if self._pending is target:  # keep changes queued during the send
             self._pending = command.state

@@ -1,5 +1,6 @@
 """The climate entity, its sensors and the power sensor."""
 
+import asyncio
 from dataclasses import replace
 
 import pytest
@@ -217,3 +218,28 @@ async def test_power_sensor_on_at_setup(hass, emitter):  # Final review 3
     assert hass.states.get(climate_id(hass, added)).state != HVACMode.OFF
     assert unit.state.power is True
     assert emitter.sent == []
+
+
+@pytest.mark.parametrize("bad", ["nan", "inf", "-inf"])
+async def test_non_finite_sensor_values(hass, emitter, bad):
+    hass.states.async_set("sensor.room", "21", {"unit_of_measurement": "°C"})
+    added = await add_unit(hass, emitter, temperature_sensor="sensor.room")
+    hass.states.async_set("sensor.room", bad, {"unit_of_measurement": "°C"})
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(climate_id(hass, added)).attributes["current_temperature"]
+        is None
+    )
+
+
+async def test_preset_does_not_undo_a_switch_change_in_flight(hass, emitter):
+    added = await add_unit(hass, emitter, "Daikin", "FTXM20R5V1B")
+    eid = climate_id(hass, added)
+    await call(hass, "set_hvac_mode", eid, hvac_mode=HVACMode.COOL)
+    emitter.delay = 0.05
+    await asyncio.gather(
+        added.unit.async_set(features={"light": True}),
+        call(hass, "set_preset_mode", eid, preset_mode="boost"),
+    )
+    features = added.unit.state.features
+    assert features["light"] is True and features["powerful"] is True

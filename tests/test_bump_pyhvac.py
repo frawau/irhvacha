@@ -54,3 +54,10 @@ def test_same_or_older_is_nothing_to_do(repo, version):
     before = read(repo)
     assert main([version], root=repo) == 3
     assert read(repo) == before
+
+
+@pytest.mark.parametrize("version", ["0.2.1rc1", "v0.2.1.dev2", "0.2.1b1"])
+def test_pre_release_is_nothing_to_do(repo, version):
+    before = read(repo)
+    assert main([version], root=repo) == 3
+    assert read(repo) == before
