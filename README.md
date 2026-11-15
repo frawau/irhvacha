@@ -75,12 +75,34 @@ Every brand and model [pyhvac supports](https://github.com/frawau/pyhvac#support
 The names are pyhvac's. A model that works keeps working: pyhvac never drops
 a model.
 
-### Getting your unit supported
+### Does your unit work? Tell pyhvac
 
-1. Record your remote with a Broadlink, using pyhvac's
-   [hvactest](https://github.com/frawau/pyhvac/tree/main/tools/hvactest) tool.
-2. Open an issue on [pyhvac](https://github.com/frawau/pyhvac/issues) with
-   the captures, the brand, and the model of the unit and of the remote.
+Most models are listed because pyhvac generates the codes their remote
+sends, not because someone has seen the unit follow them. If IR HVAC drives
+your unit, please say so in pyhvac:
+[VERIFIED.md](https://github.com/frawau/pyhvac/blob/main/VERIFIED.md) lists
+every model, with a ✅ for those checked on a real unit. Open a pull request
+that ticks your model's row and says in Notes what you checked (modes,
+setpoints, fan, swing, off/on) and with which pyhvac version; the
+[pyhvac README](https://github.com/frawau/pyhvac#verified-units) explains
+it. If your model is listed but does not work, open an
+[issue on pyhvac](https://github.com/frawau/pyhvac/issues).
+
+### Getting a new unit supported
+
+A unit pyhvac does not drive yet can be added: follow
+[Capturing IR codes to add a unit](https://github.com/frawau/pyhvac/blob/main/docs/capturing-codes.md).
+It explains the tools, how to install them, how to check whether a pyhvac
+model already drives your unit, and how to record your remote with a
+Broadlink RM. Then either:
+
+- open an [issue on pyhvac](https://github.com/frawau/pyhvac/issues) with
+  your `captures.jsonl` and the brand and model of the unit and of the
+  remote, or
+- with [Claude Code](https://claude.com/claude-code), let pyhvac's
+  `adding-a-unit` skill turn your captures into a pull request. **A pull
+  request is only for a change you have tested successfully on your own
+  unit.**
 
 When a pyhvac release adds the unit, an IR HVAC release follows
 automatically; update it in the Marketplace and restart.
